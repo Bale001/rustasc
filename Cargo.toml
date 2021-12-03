@@ -1,0 +1,8 @@
+[workspace]
+
+members = [
+    "tokenizer",
+    "parser",
+    "codegen",
+    "cmd"
+]
