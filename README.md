@@ -1,7 +1,7 @@
 # About
 RustASC is a simple AS2 compiler. It currently does not support type checking. 
 
-This can be used either using the command line utility, or by using it as a crate in another rust application (see [here](https://github.com/EmperorBale/rustasc/tree/master/codegen) or [here](https://github.com/EmperorBale/rustasc/tree/master/codegen)). RustASC internally uses the the [swf](https://docs.rs/swf/latest/swf/) crate for writing the SWF.
+This can be used either using the command line utility, or by using it as a crate in another rust application (see [here](https://github.com/EmperorBale/rustasc/tree/main/parser) or [here](https://github.com/EmperorBale/rustasc/tree/master/codegen)). RustASC internally uses the the [swf](https://docs.rs/swf/latest/swf/) crate for writing the SWF.
 
 This compiler is **experimental**, and may have bugs. 
 
