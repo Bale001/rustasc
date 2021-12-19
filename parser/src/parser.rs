@@ -53,6 +53,10 @@ impl<'a> Parser<'a> {
         }
     }
 
+    pub fn definitions(&self) -> &HashMap<Identifier<'a>, Symbol<'a>> {
+        &self.definitions
+    }
+
     pub fn load_package(
         &mut self,
         id: Identifier<'a>,
