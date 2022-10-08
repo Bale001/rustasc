@@ -8,4 +8,4 @@ edition = "2021"
 [dependencies]
 parser = { path = "../parser" }
 swf = {git = "https://github.com/ruffle-rs/ruffle"}
-indexmap = "1.7.0"
+indexmap = "1.9.1"
