@@ -10,7 +10,10 @@ use std::cell::RefCell;
 use std::io::Result;
 use std::ops::Deref;
 use std::rc::Rc;
-use swf::avm1::types::{Action, FunctionFlags, TryFlags, Value};
+use swf::avm1::types::{
+    Action, FunctionFlags, If as ActionIf, Jump as ActionJump, Push as ActionPush, StoreRegister,
+    TryFlags, Value,
+};
 use swf::avm1::write::Writer;
 use swf::write::SwfWriteExt;
 use swf::SwfStr;
@@ -165,7 +168,7 @@ impl<'a, 'b> ActionBlock<'a, 'b> {
     pub fn flush(&mut self) -> Result<()> {
         if !self.stack.is_empty() {
             let stack = std::mem::take(&mut self.stack);
-            let push = Action::Push(stack);
+            let push = Action::Push(ActionPush { values: stack });
             self.write_action(push)?;
         }
         Ok(())
@@ -281,9 +284,9 @@ impl<'a, 'b> ActionBlock<'a, 'b> {
             if matches!(compare, Compare::And) {
                 self.emit(Action::Not)?;
             }
-            self.emit(Action::If {
+            self.emit(Action::If(ActionIf {
                 offset: cond_bytes.len() as i16,
-            })?;
+            }))?;
             self.output.extend_from_slice(&cond_bytes);
             if !push && !has_ternary {
                 self.emit(Action::Pop)?;
@@ -295,17 +298,17 @@ impl<'a, 'b> ActionBlock<'a, 'b> {
             left_block.write_expression(left, true)?;
             left_block.flush()?;
             let left_bytes = left_block.into_bytes();
-            self.emit(Action::If {
+            self.emit(Action::If(ActionIf {
                 offset: left_bytes.len() as i16 + 5,
-            })?;
+            }))?;
             self.output.extend_from_slice(&left_bytes);
             let mut right_block = crate::create_block!(self);
             right_block.write_expression(right, true)?;
             right_block.flush()?;
             let right_bytes = right_block.into_bytes();
-            self.emit(Action::Jump {
+            self.emit(Action::Jump(ActionJump {
                 offset: right_bytes.len() as i16,
-            })?;
+            }))?;
             self.output.extend_from_slice(&right_bytes);
             if !push {
                 self.emit(Action::Pop)?;
@@ -354,7 +357,7 @@ impl<'a, 'b> ActionBlock<'a, 'b> {
                                 .and_then(|registers| registers.borrow_mut().find(id.base()))
                             {
                                 self.write_expression(&assign.1, true)?;
-                                self.emit(Action::StoreRegister(id))?;
+                                self.emit(Action::StoreRegister(StoreRegister { register: id }))?;
                                 if !push {
                                     self.emit(Action::Pop)?;
                                 }
@@ -372,7 +375,7 @@ impl<'a, 'b> ActionBlock<'a, 'b> {
                 self.write_expression(&assign.1, true)?;
                 if push {
                     // If push is enabled, save the value in register 0 for later
-                    self.emit(Action::StoreRegister(0))?;
+                    self.emit(Action::StoreRegister(StoreRegister { register: 0 }))?;
                 }
                 if is_member {
                     self.emit(Action::SetMember)?;
@@ -509,7 +512,7 @@ impl<'a, 'b> ActionBlock<'a, 'b> {
                         self.write_symbol(this, true)?;
                         self.emit(action)?;
                         if push {
-                            self.emit(Action::StoreRegister(0))?;
+                            self.emit(Action::StoreRegister(StoreRegister { register: 0 }))?;
                         }
                         if is_member {
                             self.emit(Action::SetMember)?;
@@ -652,7 +655,7 @@ impl<'a, 'b> ActionBlock<'a, 'b> {
             Some(id) => {
                 if let Some(exp) = declare.value() {
                     self.write_expression(exp, true)?;
-                    self.emit(Action::StoreRegister(id))?;
+                    self.emit(Action::StoreRegister(StoreRegister { register: id }))?;
                     self.emit(Action::Pop)?;
                 }
             }
@@ -687,16 +690,16 @@ impl<'a, 'b> ActionBlock<'a, 'b> {
             if total != 0 {
                 // If total is not zero, that means there is more bytecode for this
                 // if statement under this, so we need to jump over it.
-                action_block.emit(Action::Jump { offset: total })?;
+                action_block.emit(Action::Jump(ActionJump { offset: total }))?;
             }
             let (action_bytes, action_addresses) = action_block.into_parts();
             let mut condition_block = crate::create_block!(self);
             condition_block.write_expression(condition, true)?;
             condition_block.emit(Action::Not)?;
             // If the value is false, jump over the action bytecode under this.
-            condition_block.emit(Action::If {
+            condition_block.emit(Action::If(ActionIf {
                 offset: action_bytes.len() as i16,
-            })?;
+            }))?;
             condition_block.add_breakpoint_addresses(&action_addresses);
             let (mut bytes, other) = condition_block.into_parts();
             bytes.extend_from_slice(&action_bytes);
@@ -718,18 +721,18 @@ impl<'a, 'b> ActionBlock<'a, 'b> {
             let total = self.output.len() - before;
             let mut block = crate::create_block!(self);
             block.write_block(statement.code())?;
-            block.emit(Action::Jump {
+            block.emit(Action::Jump(ActionJump {
                 offset: -(total as i16) - block.len() as i16 - 10,
-            })?;
+            }))?;
             let len = block.len();
             block.resolve_addresses(
                 |addr| -((addr + 7 + total) as i16),
                 |addr| (len - (addr + 2)) as i16,
             )?;
             let bytes = block.into_bytes();
-            self.emit(Action::If {
+            self.emit(Action::If(ActionIf {
                 offset: bytes.len() as i16,
-            })?;
+            }))?;
             self.output.extend_from_slice(&bytes);
         } else {
             let mut block = crate::create_block!(self);
@@ -738,9 +741,9 @@ impl<'a, 'b> ActionBlock<'a, 'b> {
             block.write_expression(statement.condition(), true)?;
             let total = block.len() - before;
 
-            block.emit(Action::If {
+            block.emit(Action::If(ActionIf {
                 offset: -(block.len() as i16 + 5),
-            })?;
+            }))?;
             let len = block.len();
             block.resolve_addresses(
                 |addr| (len - addr - 7) as i16 - total as i16,
@@ -763,18 +766,18 @@ impl<'a, 'b> ActionBlock<'a, 'b> {
         let mut block = crate::create_block!(self);
         block.write_block(statement.code())?;
         block.write_expression(statement.update(), false)?;
-        block.emit(Action::Jump {
+        block.emit(Action::Jump(ActionJump {
             offset: -(total as i16) - block.len() as i16 - 10,
-        })?;
+        }))?;
         let len = block.len();
         block.resolve_addresses(
             |addr| -((addr + 7 + total) as i16),
             |addr| (len - (addr + 2)) as i16,
         )?;
         let bytes = block.into_bytes();
-        self.emit(Action::If {
+        self.emit(Action::If(ActionIf {
             offset: bytes.len() as i16,
-        })?;
+        }))?;
         self.output.extend_from_slice(&bytes);
         Ok(())
     }
@@ -786,7 +789,7 @@ impl<'a, 'b> ActionBlock<'a, 'b> {
             defualt_block.write_block(defualt)?;
         }
         let defualt_bytes = defualt_block.into_bytes();
-        self.emit(Action::StoreRegister(0))?;
+        self.emit(Action::StoreRegister(StoreRegister { register: 0 }))?;
         let mut code_block = crate::create_block!(self);
         let mut code_sizes = Vec::new();
         for (_, code) in statement.cases() {
@@ -815,18 +818,18 @@ impl<'a, 'b> ActionBlock<'a, 'b> {
             }
             block.write_expression(condition, true)?;
             block.emit(Action::StrictEquals)?;
-            block.emit(Action::If {
+            block.emit(Action::If(ActionIf {
                 offset: total + code_size + 5,
-            })?;
+            }))?;
             total += block.len() as i16;
             condition_buffer.push(block.into_bytes());
         }
         for code in condition_buffer.iter().rev() {
             self.output.extend_from_slice(code);
         }
-        self.emit(Action::Jump {
+        self.emit(Action::Jump(ActionJump {
             offset: code_buffer.len() as i16,
-        })?;
+        }))?;
         self.output.extend_from_slice(&code_buffer);
         self.output.extend_from_slice(&defualt_bytes);
         Ok(())
@@ -849,7 +852,7 @@ impl<'a, 'b> ActionBlock<'a, 'b> {
     pub fn write_for_in(&mut self, statement: &ForIn<'a>) -> Result<()> {
         self.write_expression(statement.object(), true)?;
         self.emit(Action::Enumerate2)?;
-        self.emit(Action::StoreRegister(0))?;
+        self.emit(Action::StoreRegister(StoreRegister { register: 0 }))?;
         self.stack.push(Value::Null);
         let mut block = crate::create_block!(self);
         let name = statement.iterator().name();
@@ -861,7 +864,7 @@ impl<'a, 'b> ActionBlock<'a, 'b> {
             {
                 Some(id) => {
                     block.stack.push(Value::Register(0));
-                    block.emit(Action::StoreRegister(id))?;
+                    block.emit(Action::StoreRegister(StoreRegister { register: id }))?;
                     block.emit(Action::Pop)?;
                 }
                 None => {
@@ -879,7 +882,7 @@ impl<'a, 'b> ActionBlock<'a, 'b> {
             {
                 Some(id) => {
                     block.stack.push(Value::Register(0));
-                    block.emit(Action::StoreRegister(id))?;
+                    block.emit(Action::StoreRegister(StoreRegister { register: id }))?;
                     block.emit(Action::Pop)?;
                 }
                 None => {
@@ -891,9 +894,9 @@ impl<'a, 'b> ActionBlock<'a, 'b> {
             }
         }
         block.write_block(statement.code())?;
-        block.emit(Action::Jump {
+        block.emit(Action::Jump(ActionJump {
             offset: -((block.len() + 19) as i16),
-        })?;
+        }))?;
         let len = block.len();
         block.resolve_addresses(
             |addr| -((addr + 16) as i16),
@@ -901,9 +904,9 @@ impl<'a, 'b> ActionBlock<'a, 'b> {
         )?;
         let bytes = block.into_bytes();
         self.emit(Action::Equals2)?;
-        self.emit(Action::If {
+        self.emit(Action::If(ActionIf {
             offset: bytes.len() as i16,
-        })?;
+        }))?;
         self.output.extend_from_slice(&bytes);
         Ok(())
     }
@@ -928,7 +931,7 @@ impl<'a, 'b> ActionBlock<'a, 'b> {
                 catch_block.emit(Action::DefineLocal)?;
                 catch_block.write_block(code)?;
                 if total != 0 {
-                    catch_block.emit(Action::Jump { offset: total })?;
+                    catch_block.emit(Action::Jump(ActionJump { offset: total }))?;
                 }
                 let catch_bytes = catch_block.into_bytes();
                 let mut block = crate::create_block!(self);
@@ -941,9 +944,9 @@ impl<'a, 'b> ActionBlock<'a, 'b> {
                 block.emit(Action::PushDuplicate)?;
                 block.stack.push(Value::Null);
                 block.emit(Action::Equals2)?;
-                block.emit(Action::If {
+                block.emit(Action::If(ActionIf {
                     offset: catch_bytes.len() as i16,
-                })?;
+                }))?;
                 block.output.extend_from_slice(&catch_bytes);
                 block
             } else {
@@ -975,7 +978,7 @@ impl<'a, 'b> ActionBlock<'a, 'b> {
         let mut try_block = crate::create_block!(self);
         try_block.write_block(statement.code())?;
         if total != 0 {
-            try_block.emit(Action::Jump { offset: total })?;
+            try_block.emit(Action::Jump(ActionJump { offset: total }))?;
         }
         let try_bytes = try_block.into_bytes();
         writer.write_u16(try_bytes.len() as u16)?;
@@ -1017,7 +1020,7 @@ impl<'a, 'b> ActionBlock<'a, 'b> {
             Instruction::Exec(exp) => self.write_expression(exp, false),
             Instruction::If(statement) => self.write_if(statement),
             Instruction::Break => {
-                self.emit(Action::Jump { offset: 0 })?;
+                self.emit(Action::Jump(ActionJump { offset: 0 }))?;
                 // NOTE: We are writing the jump, but we will not actually set
                 // its value until later!
                 self.lazy_resolve.push(LazyResolve {
@@ -1027,7 +1030,7 @@ impl<'a, 'b> ActionBlock<'a, 'b> {
                 Ok(())
             }
             Instruction::Continue => {
-                self.emit(Action::Jump { offset: 0 })?;
+                self.emit(Action::Jump(ActionJump { offset: 0 }))?;
                 self.lazy_resolve.push(LazyResolve {
                     kind: ResolveType::Continue,
                     address: self.output.len() - 2,

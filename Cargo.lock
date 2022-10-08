@@ -22,9 +22,9 @@ checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
 
 [[package]]
 name = "bitstream-io"
-version = "1.2.0"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "521f9cfb75191e53bc98586398c3104a2b10812475930f09eeccb5144fc3e68b"
+checksum = "97d524fdb78bf6dc6d2dc4c02043e4b4962ede0a17ae3e13f0ed211a7eda5897"
 
 [[package]]
 name = "build_const"
@@ -51,7 +51,7 @@ dependencies = [
  "codegen",
  "encoding_rs",
  "parser",
- "swf",
+ "swf 0.1.2",
 ]
 
 [[package]]
@@ -60,7 +60,7 @@ version = "0.1.0"
 dependencies = [
  "indexmap",
  "parser",
- "swf",
+ "swf 0.2.0",
 ]
 
 [[package]]
@@ -83,11 +83,31 @@ dependencies = [
 
 [[package]]
 name = "encoding_rs"
-version = "0.8.29"
+version = "0.8.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a74ea89a0a1b98f6332de42c95baff457ada66d1cb4030f9ff151b2041a1c746"
+checksum = "9852635589dc9f9ea1b6fe9f05b50ef208c85c834a562f0c6abb1c475736ec2b"
 dependencies = [
  "cfg-if",
+]
+
+[[package]]
+name = "enum-map"
+version = "2.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f5a56d54c8dd9b3ad34752ed197a4eb2a6601bc010808eb097a04a58ae4c43e1"
+dependencies = [
+ "enum-map-derive",
+]
+
+[[package]]
+name = "enum-map-derive"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a9045e2676cd5af83c3b167d917b0a5c90a4d8e266e2683d6631b235c457fc27"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -104,9 +124,9 @@ dependencies = [
 
 [[package]]
 name = "hashbrown"
-version = "0.11.2"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab5ef0d4909ef3724cc8cce6ccc8572c5c817592e9285f5464f8e86f8bd3726e"
+checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
 
 [[package]]
 name = "include_dir"
@@ -129,9 +149,9 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "1.7.0"
+version = "1.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc633605454125dec4b66843673f01c7df2b89479b32e0ed634e43a91cff62a5"
+checksum = "10a35a97730320ffe8e2d410b5d3b69279b98d2c14bdb8b70ea89ecf7888d41e"
 dependencies = [
  "autocfg",
  "hashbrown",
@@ -198,7 +218,7 @@ version = "0.1.0"
 dependencies = [
  "encoding_rs",
  "include_dir",
- "swf",
+ "swf 0.2.0",
  "tokenizer",
 ]
 
@@ -235,6 +255,23 @@ dependencies = [
  "bitstream-io",
  "byteorder",
  "encoding_rs",
+ "flate2",
+ "log",
+ "lzma-rs",
+ "num-derive",
+ "num-traits",
+]
+
+[[package]]
+name = "swf"
+version = "0.2.0"
+source = "git+https://github.com/ruffle-rs/ruffle?rev=5c9471436371f24f1d95011d21b5cddb7fc4ee7f#5c9471436371f24f1d95011d21b5cddb7fc4ee7f"
+dependencies = [
+ "bitflags",
+ "bitstream-io",
+ "byteorder",
+ "encoding_rs",
+ "enum-map",
  "flate2",
  "log",
  "lzma-rs",
