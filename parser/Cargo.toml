@@ -9,4 +9,4 @@ edition = "2018"
 tokenizer = { path = "../tokenizer" }
 encoding_rs = "0.8.31"
 include_dir = "0.7.1"
-swf = {git = "https://github.com/ruffle-rs/ruffle", rev="5c9471436371f24f1d95011d21b5cddb7fc4ee7f"}
+swf = {git = "https://github.com/ruffle-rs/ruffle", rev="5c9471436371f24f1d95011d21b5cddb7fc4ee7f", default-features = false}
