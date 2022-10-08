@@ -7,6 +7,6 @@ edition = "2018"
 
 [dependencies]
 tokenizer = { path = "../tokenizer" }
-encoding_rs = "0.8.29"
+encoding_rs = "0.8.31"
 include_dir = "0.7.1"
 swf = {git = "https://github.com/ruffle-rs/ruffle"}
